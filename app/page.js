@@ -1,101 +1,125 @@
-import Image from "next/image";
+"use client";
+import { useEffect, useState } from 'react';
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.js
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [data, setData] = useState([]);
+  const [name, setName] = useState('');
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isOnline, setIsOnline] = useState(true);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+  const addItem = () => {
+    const newData = [...data, { id: Date.now(), name }];
+    setData(newData);
+    setName('');
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('crudData', JSON.stringify(newData));
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedData = localStorage.getItem('crudData');
+      if (savedData) {
+        setData(JSON.parse(savedData));
+      }
+
+      // Menangani event beforeinstallprompt
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        setDeferredPrompt(e);
+      });
+
+      // Menangani event online dan offline
+      const handleOnline = () => {
+        setIsOnline(true);
+      };
+
+      const handleOffline = () => {
+        setIsOnline(false);
+      };
+
+      // Menyimpan status online/offline
+      setIsOnline(navigator.onLine);
+
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      };
+    }
+  }, []);
+
+  const removeItem = (id) => {
+    const newData = data.filter(item => item.id !== id);
+    setData(newData);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('crudData', JSON.stringify(newData));
+    }
+  };
+
+  const handleAddToHomeScreen = () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === 'accepted') {
+          console.log('Pengguna menerima A2HS');
+        } else {
+          console.log('Pengguna menolak A2HS');
+        }
+        setDeferredPrompt(null);
+      });
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center p-4">
+      <h1 className="text-2xl font-bold mb-4">Contoh Crud Pwa</h1>
+      <input
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Masukkan nama"
+        className="border rounded-lg p-2 mb-2 w-full max-w-xs"
+      />
+      <button 
+        onClick={addItem}
+        className="bg-blue-500 text-white rounded-lg p-2 mb-4 hover:bg-blue-600 transition"
+      >
+        Tambah
+      </button>
+      <ul className="w-full max-w-xs">
+        {data.map(item => (
+          <li key={item.id} className="flex justify-between items-center border-b py-2">
+            {item.name}
+            <button 
+              onClick={() => removeItem(item.id)}
+              className="text-red-500 hover:text-red-700"
+            >
+              Hapus
+            </button>
+          </li>
+        ))}
+      </ul>
+      {/* Tombol untuk menambahkan ke layar beranda */}
+      {deferredPrompt && (
+        <button 
+          onClick={handleAddToHomeScreen}
+          className="bg-green-500 text-white rounded-lg p-2 mt-4 hover:bg-green-600 transition"
         >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          Tambahkan ke Layar Beranda
+        </button>
+      )}
+
+      {/* Menampilkan status online/offline */}
+      <div
+        className={`fixed top-4 right-4 px-4 py-2 text-white rounded-md transition-opacity duration-500 ${
+          isOnline ? 'bg-green-500' : 'bg-red-500'
+        }`}
+      >
+        {isOnline ? 'Kamu sedang online' : 'Kamu sedang offline'}
+      </div>
     </div>
   );
 }
